@@ -1,0 +1,11 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/src/ReplicationDemo.Api/bin/Debug/net8.0
+/src/ReplicationDemo.Api/obj
+/src/ReplicationDemo.DAL/bin/Debug/net8.0
+/src/ReplicationDemo.DAL/obj
+/src/ReplicationDemo.Domain/bin/Debug/net8.0
+/src/ReplicationDemo.Domain/obj
+/.vs

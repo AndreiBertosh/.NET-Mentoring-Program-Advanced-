@@ -1,0 +1,5 @@
+IF DB_ID('JobManager') IS NULL
+BEGIN
+    CREATE DATABASE JobManager;
+END
+GO
