@@ -7,23 +7,23 @@ A minimal demo project demonstrating **MS SQL Server transactional replication**
 ```
 ┌──────────────┐         ┌──────────────────┐
 │   API Layer  │         │   Domain Layer   │
-│  (Controllers)├────────►│  (Entities,      │
+│ (Controllers)├────────►│  (Entities,      │
 │              │         │   Repositories)  │
 └──────┬───────┘         └────────▲─────────┘
        │                          │
        ▼                          │
 ┌──────────────────────────────────┐
 │          DAL Layer               │
-│  ┌─────────────┐ ┌────────────┐ │
-│  │ WriteRepo   │ │ ReadRepo   │ │
-│  │ (Primary)   │ │ (Replica)  │ │
-│  └──────┬──────┘ └─────┬──────┘ │
-└─────────┼──────────────┼────────┘
-          │              │
-          ▼              ▼
+│  ┌─────────────┐  ┌────────────┐ │
+│  │ WriteRepo   │  │ ReadRepo   │ │
+│  │ (Primary)   │  │ (Replica)  │ │
+│  └──────┬──────┘  └─────┬──────┘ │
+└─────────┼───────────────┼────────┘
+          │               │
+          ▼               ▼
    ┌────────────┐  ┌────────────┐
    │  Primary   │  │  Replica   │
-   │ mssql:1433 │─►│ mssql:1434 │
+   │ mssql:1435 │─►│ mssql:1434 │
    │  (R/W)     │  │  (R/O)     │
    └────────────┘  └────────────┘
      Transactional Replication
@@ -35,7 +35,7 @@ This demo uses **SQL Server Transactional Replication**:
 
 | Role | Container | Port | Purpose |
 |------|-----------|------|---------|
-| **Publisher + Distributor** | `mssql-primary` | 1433 | All writes go here |
+| **Publisher + Distributor** | `mssql-primary` | 1435 | All writes go here |
 | **Subscriber** | `mssql-replica` | 1434 | Read-only queries served from here |
 
 **How it works:**
@@ -53,7 +53,7 @@ The DAL enforces read/write separation at the architecture level:
 | Operation | Repository | DbContext | Target |
 |-----------|------------|-----------|--------|
 | SELECT queries | `JobReadRepository` | `ReadOnlyDbContext` | Replica (port 1434) |
-| INSERT/UPDATE/DELETE | `JobWriteRepository` | `PrimaryDbContext` | Primary (port 1433) |
+| INSERT/UPDATE/DELETE | `JobWriteRepository` | `PrimaryDbContext` | Primary (port 1435) |
 
 **Key design decisions:**
 - `ReadOnlyDbContext` uses `AsNoTracking()` for all queries (better performance)
