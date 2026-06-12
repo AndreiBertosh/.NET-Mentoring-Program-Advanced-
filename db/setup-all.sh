@@ -37,6 +37,9 @@ $SQLCMD -S $PRIMARY -U sa -P "$SA_PWD" -i /scripts/init/02-seed.sql
 echo "=== Verifying primary data ==="
 $SQLCMD -S $PRIMARY -U sa -P "$SA_PWD" -d JobManager -Q "SELECT COUNT(*) AS PrimaryJobCount FROM Jobs"
 
+echo "=== Verifying partition distribution (JobExecutions) ==="
+$SQLCMD -S $PRIMARY -U sa -P "$SA_PWD" -i /scripts/init/03-verify-partitions.sql
+
 # ---- REPLICA SETUP ----
 wait_for_sql $REPLICA
 wait_for_agent $REPLICA
@@ -46,8 +49,12 @@ $SQLCMD -S $REPLICA -U sa -P "$SA_PWD" -Q "IF DB_ID('JobManager') IS NULL CREATE
 $SQLCMD -S $REPLICA -U sa -P "$SA_PWD" -i /scripts/init/01-schema.sql
 $SQLCMD -S $REPLICA -U sa -P "$SA_PWD" -i /scripts/init/02-seed.sql
 
-echo "=== Verifying replica schema ==="
+echo "=== Verifying replica schema (pre-replication) ==="
 $SQLCMD -S $REPLICA -U sa -P "$SA_PWD" -d JobManager -Q "SELECT COUNT(*) AS ReplicaTableCount FROM sys.tables WHERE name IN ('Jobs','JobSchedules','JobExecutions')"
+# NOTE: partition verification on the replica is intentionally deferred until
+# AFTER the replication snapshot fires (see post-snapshot section below).
+# The snapshot uses @pre_creation_cmd = N'drop', which drops and recreates
+# JobExecutions; verifying now would check the pre-snapshot state only.
 
 # ---- REPLICATION ----
 echo "=== Setting up replication (distributor + publication + subscription) ==="
@@ -105,6 +112,31 @@ fi
 echo "=== Cleaning up canary row from primary ==="
 $SQLCMD -S $PRIMARY -U sa -P "$SA_PWD" -d JobManager -Q "
 DELETE FROM Jobs WHERE Name = N'__replication_canary__';"
+
+# ---- POST-SNAPSHOT: ENSURE REPLICA PARTITIONING ----
+# The snapshot (@pre_creation_cmd = N'drop') has now been confirmed applied.
+# Run the idempotent safety net: if the snapshot recreated JobExecutions
+# without the partition scheme (schema_option 0x0000000004000000 was not
+# honoured by the SQL Server on Linux snapshot agent), this script rebuilds
+# the clustered PK onto PS_JobExecutions_ByMonth without data loss.
+echo "=== Ensuring JobExecutions is partitioned on replica (post-snapshot) ==="
+$SQLCMD -S $REPLICA -U sa -P "$SA_PWD" -i /scripts/init/04-ensure-replica-partitioning.sql
+
+echo "=== Post-snapshot: verifying partition function and scheme on replica ==="
+$SQLCMD -S $REPLICA -U sa -P "$SA_PWD" -d JobManager -Q "
+SELECT
+    pf.name  AS partition_function,
+    ps.name  AS partition_scheme,
+    CASE pf.boundary_value_on_right WHEN 1 THEN 'RANGE RIGHT' ELSE 'RANGE LEFT' END AS range_type,
+    COUNT(prv.boundary_id) AS boundary_count
+FROM sys.partition_functions   pf
+JOIN sys.partition_schemes     ps  ON ps.function_id    = pf.function_id
+JOIN sys.partition_range_values prv ON prv.function_id  = pf.function_id
+WHERE pf.name = 'PF_JobExecutions_ByMonth'
+GROUP BY pf.name, ps.name, pf.boundary_value_on_right;"
+
+echo "=== Post-snapshot: verifying partition distribution on replica ==="
+$SQLCMD -S $REPLICA -U sa -P "$SA_PWD" -i /scripts/init/03-verify-partitions.sql
 
 echo ""
 echo "=== Final status ==="

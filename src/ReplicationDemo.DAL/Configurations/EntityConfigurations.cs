@@ -45,6 +45,11 @@ public class JobExecutionConfiguration : IEntityTypeConfiguration<JobExecution>
         builder.Property(e => e.Id).HasDefaultValueSql("NEWSEQUENTIALID()");
         builder.Property(e => e.Result).HasMaxLength(50).HasDefaultValue("Running");
         builder.Property(e => e.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
-        builder.HasIndex(e => e.JobId);
+        // The database clustered PK is (StartedAt, Id) on partition scheme
+        // PS_JobExecutions_ByMonth. The unique non-clustered index UX_JobExecutions_Id
+        // supports entity-by-Guid lookups. The partition-aligned composite index
+        // IX_JobExecutions_JobId_StartedAt covers GetExecutionsByJobIdAsync.
+        // Schema is managed by SQL init scripts — not by EF Core migrations.
+        builder.HasIndex(e => new { e.JobId, e.StartedAt });
     }
 }
