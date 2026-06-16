@@ -97,10 +97,17 @@ public class JobsController : ControllerBase
     }
 
     /// <summary>Reads from REPLICA — get execution history for a job.</summary>
+    /// <param name="id">Job identifier.</param>
+    /// <param name="from">Optional UTC lower bound for <c>StartedAt</c> (partition key). Enables partition elimination on PF_JobExecutions_ByMonth.</param>
+    /// <param name="to">Optional UTC exclusive upper bound for <c>StartedAt</c> (partition key). Enables partition elimination on PF_JobExecutions_ByMonth.</param>
     [HttpGet("{id:guid}/executions")]
-    public async Task<IActionResult> GetExecutions(Guid id, CancellationToken ct)
+    public async Task<IActionResult> GetExecutions(
+        Guid id,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        CancellationToken ct)
     {
-        var executions = await _readRepo.GetExecutionsByJobIdAsync(id, ct);
+        var executions = await _readRepo.GetExecutionsByJobIdAsync(id, from, to, ct);
         return Ok(executions);
     }
 }

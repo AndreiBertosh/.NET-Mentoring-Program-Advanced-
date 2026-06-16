@@ -83,6 +83,14 @@ EXEC sp_addarticle
     @schema_option = 0x000000000803509F;
 GO
 
+-- JobExecutions is partitioned. schema_option includes 0x0000000004000000
+-- ("script filegroup/partition-scheme clause on ON keyword") so the snapshot
+-- agent emits ON PS_JobExecutions_ByMonth (StartedAt) when it recreates the
+-- table on the subscriber.  The partition function PF_JobExecutions_ByMonth
+-- and scheme PS_JobExecutions_ByMonth are pre-created on the replica by
+-- 01-schema.sql before replication setup runs, so they are available when
+-- the snapshot fires.
+-- 0x0000000004000000 | 0x000000000803509F = 0x000000000C03509F
 EXEC sp_addarticle
     @publication = N'JobManagerPublication',
     @article = N'JobExecutions',
@@ -90,7 +98,7 @@ EXEC sp_addarticle
     @source_owner = N'dbo',
     @type = N'logbased',
     @pre_creation_cmd = N'drop',
-    @schema_option = 0x000000000803509F;
+    @schema_option = 0x000000000C03509F;
 GO
 
 -- ============================================================
