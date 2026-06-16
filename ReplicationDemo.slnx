@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/ReplicationDemo.Api/ReplicationDemo.Api.csproj" />
+    <Project Path="src/ReplicationDemo.Application/ReplicationDemo.Application.csproj" />
     <Project Path="src/ReplicationDemo.DAL/ReplicationDemo.DAL.csproj" />
     <Project Path="src/ReplicationDemo.Domain/ReplicationDemo.Domain.csproj" />
   </Folder>

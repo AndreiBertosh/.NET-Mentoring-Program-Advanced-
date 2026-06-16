@@ -1,6 +1,147 @@
-@ReplicationDemo.Api_HostAddress = http://localhost:5241
+@host = http://localhost:5241
 
-GET {{ReplicationDemo.Api_HostAddress}}/weatherforecast/
+# ============================================================
+# DEMO SCRIPT — Consistency-Aware DAL
+# Run: docker compose up -d  (wait ~60 s for replication)
+#      dotnet run  (from src/ReplicationDemo.Api)
+# Then send requests top-to-bottom in order.
+# ============================================================
+
+# ------------------------------------------------------------------
+# STEP 1 — Catalog browse (UC2.3)
+# Consistency: Eventual → replica read (no X-User-Id needed)
+# Expected log: ConsistencyLevel=Eventual → replica
+# ------------------------------------------------------------------
+GET {{host}}/api/job-manager/jobs
 Accept: application/json
+
+###
+
+# ------------------------------------------------------------------
+# STEP 2 — Create a job (UC1.1)
+# Consistency: Strong write to primary + ReadAfterWrite cooldown starts
+# Header X-User-Id identifies the user for the cooldown window.
+# Expected log: "UC1.1 Job created ... ReadAfterWrite cooldown started"
+# Copy the returned "id" into @jobId below.
+# ------------------------------------------------------------------
+POST {{host}}/api/job-manager/jobs
+Content-Type: application/json
+X-User-Id: demo-user
+
+{
+  "name": "Nightly Report",
+  "frequency": "Daily",
+  "executionTime": "02:30:00",
+  "apiEndpoint": "https://reports.example.com/api/nightly"
+}
+
+###
+
+# ------------------------------------------------------------------
+# STEP 3 — Read back IMMEDIATELY after write (ReadAfterWrite demo)
+# Consistency: ReadAfterWrite → resolved to Strong (primary) because
+#              demo-user is within the 5-second cooldown window.
+# Expected log: ConsistencyLevel=ReadAfterWrite → Strong → primary
+# Try again after 5 s — you will see it switch to replica.
+# ------------------------------------------------------------------
+@jobId = 00000000-0000-0000-0000-000000000000
+
+GET {{host}}/api/job-manager/jobs/{{jobId}}
+Accept: application/json
+X-User-Id: demo-user
+
+###
+
+# ------------------------------------------------------------------
+# STEP 4 — Different user reads same job (Eventual)
+# Consistency: Eventual → replica (no cooldown for "other-user")
+# Expected log: ConsistencyLevel=Eventual → replica
+# ------------------------------------------------------------------
+GET {{host}}/api/job-manager/jobs/{{jobId}}
+Accept: application/json
+X-User-Id: other-user
+
+###
+
+# ------------------------------------------------------------------
+# STEP 5 — Orchestrator: poll pending schedules (UC2.1a)
+# Consistency: Eventual → replica
+# Expected log: ConsistencyLevel=Eventual (replica)
+# ------------------------------------------------------------------
+GET {{host}}/api/orchestrator/schedules/pending
+Accept: application/json
+
+###
+
+# ------------------------------------------------------------------
+# STEP 6 — Orchestrator: create a schedule (UC2.1b — strong write)
+# Consistency: Strong write to primary
+# Expected log: Strong write to primary
+# ------------------------------------------------------------------
+POST {{host}}/api/orchestrator/schedules
+Content-Type: application/json
+
+{
+  "jobId": "{{jobId}}",
+  "nextRunTime": "2026-06-16T02:30:00Z"
+}
+
+###
+
+# ------------------------------------------------------------------
+# STEP 7 — Orchestrator: record execution result (UC2.1b — strong write)
+# Consistency: Strong write to primary (audit trail must be durable)
+# Expected log: Strong write to primary
+# ------------------------------------------------------------------
+POST {{host}}/api/orchestrator/executions
+Content-Type: application/json
+
+{
+  "jobId": "{{jobId}}",
+  "startedAt": "2026-06-15T02:30:01Z",
+  "finishedAt": "2026-06-15T02:30:45Z",
+  "result": "Success"
+}
+
+###
+
+# ------------------------------------------------------------------
+# STEP 8 — Execution history (UC2.2 — Eventual, with partition key)
+# Consistency: Eventual → replica
+# from/to enable partition elimination on PF_JobExecutions_ByMonth
+# Expected log: ConsistencyLevel=Eventual → replica, partition elimination active
+# ------------------------------------------------------------------
+GET {{host}}/api/orchestrator/jobs/{{jobId}}/executions?from=2026-06-01T00:00:00Z&to=2026-07-01T00:00:00Z
+Accept: application/json
+
+###
+
+# ------------------------------------------------------------------
+# STEP 9 — Update job (UC1.2), then read back (ReadAfterWrite again)
+# ------------------------------------------------------------------
+PUT {{host}}/api/job-manager/jobs/{{jobId}}
+Content-Type: application/json
+X-User-Id: demo-user
+
+{
+  "name": "Nightly Report (updated)",
+  "frequency": "Daily",
+  "executionTime": "03:00:00",
+  "apiEndpoint": "https://reports.example.com/api/nightly-v2"
+}
+
+###
+
+GET {{host}}/api/job-manager/jobs/{{jobId}}
+Accept: application/json
+X-User-Id: demo-user
+
+###
+
+# ------------------------------------------------------------------
+# STEP 10 — Delete job (UC1.3)
+# ------------------------------------------------------------------
+DELETE {{host}}/api/job-manager/jobs/{{jobId}}
+X-User-Id: demo-user
 
 ###
