@@ -1,42 +1,61 @@
 using Microsoft.AspNetCore.Mvc;
+using ReplicationDemo.Application.Services;
 using ReplicationDemo.Domain.Entities;
-using ReplicationDemo.Domain.Repositories;
 
 namespace ReplicationDemo.Api.Controllers;
 
+/// <summary>
+/// Job Manager API — UC1.1
+/// Handles job CRUD operations with consistency-aware data access.
+/// Consistency decisions are encapsulated in <see cref="IJobManagerService"/>; this
+/// controller does not specify or expose consistency levels to API consumers.
+/// </summary>
 [ApiController]
-[Route("api/[controller]")]
-public class JobsController : ControllerBase
+[Route("api/job-manager/jobs")]
+[Produces("application/json")]
+public class JobManagerController : ControllerBase
 {
-    private readonly IJobReadRepository _readRepo;
-    private readonly IJobWriteRepository _writeRepo;
+    private readonly IJobManagerService _jobManager;
 
-    public JobsController(IJobReadRepository readRepo, IJobWriteRepository writeRepo)
+    public JobManagerController(IJobManagerService jobManager)
     {
-        _readRepo = readRepo;
-        _writeRepo = writeRepo;
+        _jobManager = jobManager;
     }
 
-    /// <summary>Reads from REPLICA — list all jobs.</summary>
+    /// <summary>
+    /// Returns all jobs ordered by name.
+    /// Consistency: Eventual (replica read — catalog browsing).
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var jobs = await _readRepo.GetAllAsync(ct);
+        var jobs = await _jobManager.GetAllJobsAsync(ct);
         return Ok(jobs);
     }
 
-    /// <summary>Reads from REPLICA — get job by id with schedules and executions.</summary>
+    /// <summary>
+    /// Returns a single job with its schedules and executions.
+    /// Consistency: ReadAfterWrite — primary during post-write cooldown, replica otherwise.
+    /// Pass <c>X-User-Id</c> header to correlate reads with your own writes.
+    /// </summary>
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
-        var job = await _readRepo.GetByIdAsync(id, ct);
+        var userId = ResolveUserId();
+        var job = await _jobManager.GetJobByIdAsync(id, userId, ct);
         return job is null ? NotFound() : Ok(job);
     }
 
-    /// <summary>Writes to PRIMARY — create a new job (UC1.1).</summary>
+    /// <summary>
+    /// UC1.1 — Creates a new job.
+    /// Consistency: Strong write to primary. ReadAfterWrite cooldown starts immediately
+    /// so that a subsequent GET by the same user is routed to primary.
+    /// Pass <c>X-User-Id</c> header to correlate this write with your subsequent reads.
+    /// </summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateJobRequest request, CancellationToken ct)
     {
+        var userId = ResolveUserId();
         var job = new Job
         {
             Name = request.Name,
@@ -45,14 +64,18 @@ public class JobsController : ControllerBase
             ApiEndpoint = request.ApiEndpoint
         };
 
-        var created = await _writeRepo.CreateAsync(job, ct);
+        var created = await _jobManager.CreateJobAsync(job, userId, ct);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
-    /// <summary>Writes to PRIMARY — update a job.</summary>
+    /// <summary>
+    /// UC1.2 — Updates an existing job.
+    /// Consistency: Strong write to primary. ReadAfterWrite cooldown restarts for this user.
+    /// </summary>
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] CreateJobRequest request, CancellationToken ct)
     {
+        var userId = ResolveUserId();
         var job = new Job
         {
             Id = id,
@@ -64,7 +87,7 @@ public class JobsController : ControllerBase
 
         try
         {
-            await _writeRepo.UpdateAsync(job, ct);
+            await _jobManager.UpdateJobAsync(job, userId, ct);
         }
         catch (InvalidOperationException)
         {
@@ -73,13 +96,17 @@ public class JobsController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Writes to PRIMARY — delete a job.</summary>
+    /// <summary>
+    /// UC1.3 — Deletes a job and all its associated schedules and executions.
+    /// Consistency: Strong write to primary. ReadAfterWrite cooldown restarts for this user.
+    /// </summary>
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
+        var userId = ResolveUserId();
         try
         {
-            await _writeRepo.DeleteAsync(id, ct);
+            await _jobManager.DeleteJobAsync(id, userId, ct);
         }
         catch (InvalidOperationException)
         {
@@ -88,28 +115,21 @@ public class JobsController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Reads from REPLICA — get pending schedules (UC2.1).</summary>
-    [HttpGet("schedules/pending")]
-    public async Task<IActionResult> GetPendingSchedules(CancellationToken ct)
+    /// <summary>
+    /// Extracts a stable user identifier for ReadAfterWrite tracking.
+    /// Checks <c>X-User-Id</c> header first, falls back to remote IP, then "anonymous".
+    /// </summary>
+    private string ResolveUserId()
     {
-        var schedules = await _readRepo.GetPendingSchedulesAsync(ct);
-        return Ok(schedules);
-    }
+        if (HttpContext.Request.Headers.TryGetValue("X-User-Id", out var headerValue)
+            && !string.IsNullOrWhiteSpace(headerValue))
+        {
+            return headerValue.ToString();
+        }
 
-    /// <summary>Reads from REPLICA — get execution history for a job.</summary>
-    /// <param name="id">Job identifier.</param>
-    /// <param name="from">Optional UTC lower bound for <c>StartedAt</c> (partition key). Enables partition elimination on PF_JobExecutions_ByMonth.</param>
-    /// <param name="to">Optional UTC exclusive upper bound for <c>StartedAt</c> (partition key). Enables partition elimination on PF_JobExecutions_ByMonth.</param>
-    [HttpGet("{id:guid}/executions")]
-    public async Task<IActionResult> GetExecutions(
-        Guid id,
-        [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to,
-        CancellationToken ct)
-    {
-        var executions = await _readRepo.GetExecutionsByJobIdAsync(id, from, to, ct);
-        return Ok(executions);
+        return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
     }
 }
 
 public record CreateJobRequest(string Name, string Frequency, TimeSpan ExecutionTime, string ApiEndpoint);
+

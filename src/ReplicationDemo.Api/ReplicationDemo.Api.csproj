@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ReplicationDemo.Domain\ReplicationDemo.Domain.csproj" />
     <ProjectReference Include="..\ReplicationDemo.DAL\ReplicationDemo.DAL.csproj" />
+    <ProjectReference Include="..\ReplicationDemo.Application\ReplicationDemo.Application.csproj" />
   </ItemGroup>
 
 </Project>

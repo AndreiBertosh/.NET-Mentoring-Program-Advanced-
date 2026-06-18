@@ -9,3 +9,5 @@
 /src/ReplicationDemo.Domain/bin/Debug/net8.0
 /src/ReplicationDemo.Domain/obj
 /.vs
+/src/ReplicationDemo.Application/bin/Debug/net8.0
+/src/ReplicationDemo.Application/obj/Debug/net8.0

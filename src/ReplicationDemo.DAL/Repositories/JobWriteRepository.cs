@@ -19,6 +19,8 @@ public class JobWriteRepository : IJobWriteRepository
 
     public async Task<Job> CreateAsync(Job job, CancellationToken ct = default)
     {
+        if (job.Id == Guid.Empty)
+            job.Id = Guid.NewGuid();
         job.CreatedAt = DateTime.UtcNow;
         _context.Jobs.Add(job);
 
@@ -64,6 +66,8 @@ public class JobWriteRepository : IJobWriteRepository
 
     public async Task<JobSchedule> CreateScheduleAsync(JobSchedule schedule, CancellationToken ct = default)
     {
+        if (schedule.Id == Guid.Empty)
+            schedule.Id = Guid.NewGuid();
         schedule.CreatedAt = DateTime.UtcNow;
         _context.JobSchedules.Add(schedule);
 
@@ -78,6 +82,8 @@ public class JobWriteRepository : IJobWriteRepository
 
     public async Task<JobExecution> CreateExecutionAsync(JobExecution execution, CancellationToken ct = default)
     {
+        if (execution.Id == Guid.Empty)
+            execution.Id = Guid.NewGuid();
         execution.CreatedAt = DateTime.UtcNow;
         _context.JobExecutions.Add(execution);
 
