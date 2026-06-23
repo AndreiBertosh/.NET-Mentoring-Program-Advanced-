@@ -96,4 +96,27 @@ public class JobWriteRepository : IJobWriteRepository
         await _context.SaveChangesAsync(ct);
         return execution;
     }
+
+    public async Task UpdateScheduleStatusAsync(Guid scheduleId, string status, CancellationToken ct = default)
+    {
+        var schedule = await _context.JobSchedules.FindAsync([scheduleId], ct)
+            ?? throw new InvalidOperationException($"JobSchedule {scheduleId} not found.");
+
+        schedule.Status = status;
+        _logger.LogDebug("UpdateScheduleStatus: ScheduleId={ScheduleId} Status={Status}",
+            scheduleId, status);
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task DeletePendingSchedulesByJobIdAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var pending = _context.JobSchedules
+            .Where(s => s.JobId == jobId && s.Status == "Pending");
+
+        _context.JobSchedules.RemoveRange(pending);
+        var deleted = await _context.SaveChangesAsync(ct);
+
+        _logger.LogDebug("DeletePendingSchedules: JobId={JobId} Deleted={Count}", jobId, deleted);
+    }
 }

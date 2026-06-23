@@ -1,0 +1,72 @@
+{
+  "UserConfig": {
+    "Namespaces": [
+      {
+        "Name": "sb-jobmanager-local",
+        "Queues": [
+          {
+            "Name": "job-execution-requests",
+            "Properties": {
+              "RequiresSession": true,
+              "MaxDeliveryCount": 5,
+              "LockDuration": "PT5M",
+              "DefaultMessageTimeToLive": "PT1H",
+              "DeadLetteringOnMessageExpiration": true
+            }
+          },
+          {
+            "Name": "job-execution-results",
+            "Properties": {
+              "RequiresSession": true,
+              "MaxDeliveryCount": 5,
+              "LockDuration": "PT1M",
+              "DefaultMessageTimeToLive": "PT1H",
+              "DeadLetteringOnMessageExpiration": true
+            }
+          },
+          {
+            "Name": "notifications",
+            "Properties": {
+              "RequiresSession": false,
+              "MaxDeliveryCount": 3,
+              "LockDuration": "PT30S",
+              "DefaultMessageTimeToLive": "PT1H",
+              "DeadLetteringOnMessageExpiration": true
+            }
+          }
+        ],
+        "Topics": [
+          {
+            "Name": "job-lifecycle",
+            "Properties": {
+              "DefaultMessageTimeToLive": "PT1H"
+            },
+            "Subscriptions": [
+              {
+                "Name": "orchestrator-sync",
+                "Properties": {
+                  "MaxDeliveryCount": 10,
+                  "LockDuration": "PT1M",
+                  "DefaultMessageTimeToLive": "PT1H",
+                  "DeadLetteringOnMessageExpiration": true
+                }
+              },
+              {
+                "Name": "audit-log",
+                "Properties": {
+                  "MaxDeliveryCount": 5,
+                  "LockDuration": "PT30S",
+                  "DefaultMessageTimeToLive": "PT1H",
+                  "DeadLetteringOnMessageExpiration": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "Logging": {
+      "Type": "File"
+    }
+  }
+}

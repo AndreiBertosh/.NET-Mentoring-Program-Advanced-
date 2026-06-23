@@ -4,5 +4,7 @@
     <Project Path="src/ReplicationDemo.Application/ReplicationDemo.Application.csproj" />
     <Project Path="src/ReplicationDemo.DAL/ReplicationDemo.DAL.csproj" />
     <Project Path="src/ReplicationDemo.Domain/ReplicationDemo.Domain.csproj" />
+    <Project Path="src/ReplicationDemo.Messaging/ReplicationDemo.Messaging.csproj" />
+    <Project Path="src/ReplicationDemo.Worker/ReplicationDemo.Worker.csproj" />
   </Folder>
 </Solution>

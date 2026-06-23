@@ -142,4 +142,24 @@ public class JobReadRepository : IJobReadRepository
             .OrderByDescending(e => e.StartedAt)
             .ToListAsync(ct);
     }
+
+    public async Task<bool> HasPendingScheduleAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Always read from primary to get the most current state and avoid a race with
+        // the JobLifecycleConsumer creating a duplicate schedule on at-least-once redelivery.
+        return await _primaryContext.JobSchedules
+            .AsNoTracking()
+            .AnyAsync(s => s.JobId == jobId && s.Status == "Pending", ct);
+    }
+
+    public async Task<IReadOnlyList<JobSchedule>> GetStuckRunningSchedulesAsync(
+        DateTime before,
+        CancellationToken ct = default)
+    {
+        // Always read from primary — reconciliation needs authoritative state.
+        return await _primaryContext.JobSchedules
+            .AsNoTracking()
+            .Where(s => s.Status == "Running" && s.CreatedAt < before)
+            .ToListAsync(ct);
+    }
 }

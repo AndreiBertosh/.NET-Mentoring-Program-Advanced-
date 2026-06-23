@@ -37,4 +37,18 @@ public interface IJobReadRepository
         DateTime? to = null,
         ConsistencyLevel consistency = ConsistencyLevel.Eventual,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns <c>true</c> if any <c>Pending</c> schedule exists for <paramref name="jobId"/>
+    /// (regardless of <c>NextRunTime</c>). Used by the Orchestrator to prevent duplicate schedules.
+    /// Always reads from the primary (Strong) to get the most current state.
+    /// </summary>
+    Task<bool> HasPendingScheduleAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns schedules whose <c>Status</c> is <c>Running</c> and <c>CreatedAt</c> is before
+    /// <paramref name="before"/> (UTC). Used by the reconciliation service to detect stuck executions.
+    /// Always reads from the primary.
+    /// </summary>
+    Task<IReadOnlyList<JobSchedule>> GetStuckRunningSchedulesAsync(DateTime before, CancellationToken ct = default);
 }

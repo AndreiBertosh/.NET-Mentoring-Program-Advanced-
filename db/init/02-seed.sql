@@ -42,14 +42,14 @@ BEGIN
         (@Job5, 'Daily Backup',         'Daily',   '23:00:00', 'https://api.example.com/backup/run');
 
     -- --------------------------------------------------------
-    -- JobSchedules (next upcoming run per job)
+    -- JobSchedules (overdue/due schedules so the demo API returns results immediately)
     -- --------------------------------------------------------
     INSERT INTO JobSchedules (JobId, NextRunTime, Status) VALUES
-        (@Job1, DATEADD(HOUR,  6,  CAST(DATEADD(DAY, 1, CAST(GETUTCDATE() AS DATE)) AS DATETIME2)), 'Pending'),
-        (@Job2, DATEADD(HOUR,  1,  SYSUTCDATETIME()),                                                'Pending'),
-        (@Job3, DATEADD(DAY,   7,  SYSUTCDATETIME()),                                                'Pending'),
-        (@Job4, DATEADD(DAY,  30,  SYSUTCDATETIME()),                                                'Pending'),
-        (@Job5, DATEADD(HOUR, 23,  CAST(DATEADD(DAY, 1, CAST(GETUTCDATE() AS DATE)) AS DATETIME2)), 'Pending');
+        (@Job1, DATEADD(MINUTE, -30,  SYSUTCDATETIME()),  'Pending'),   -- Daily Sales Report:  30 min overdue
+        (@Job2, DATEADD(HOUR,   -2,   SYSUTCDATETIME()),  'Pending'),   -- Hourly Health Check:  2 hrs overdue
+        (@Job3, DATEADD(DAY,    -1,   SYSUTCDATETIME()),  'Pending'),   -- Weekly Data Sync:     1 day overdue
+        (@Job4, DATEADD(DAY,    30,   SYSUTCDATETIME()),  'Pending'),   -- Monthly Cleanup:      30 days away (future)
+        (@Job5, DATEADD(HOUR,    6,   SYSUTCDATETIME()),  'Pending');   -- Daily Backup:         6 hrs away (future)
 
     -- --------------------------------------------------------
     -- JobExecutions — 90 rows across 6 monthly partitions
