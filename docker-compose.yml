@@ -56,6 +56,51 @@ services:
     networks:
       - replication-net
 
+  # ---------------------------------------------------------------------------
+  # Job Manager API
+  # ---------------------------------------------------------------------------
+  job-manager-api:
+    build:
+      context: .
+      dockerfile: src/ReplicationDemo.Api/Dockerfile
+    container_name: job-manager-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Primary=Server=mssql-primary,1433;Database=JobManager;User Id=sa;Password=Str0ng!Passw0rd;TrustServerCertificate=true
+      - ConnectionStrings__Replica=Server=mssql-replica,1433;Database=JobManager;User Id=sa;Password=Str0ng!Passw0rd;TrustServerCertificate=true
+      - ServiceBus__ConnectionString=your connection string here
+    ports:
+      - "5000:8080"
+    depends_on:
+      mssql-primary:
+        condition: service_healthy
+      mssql-replica:
+        condition: service_healthy
+    networks:
+      - replication-net
+
+  # ---------------------------------------------------------------------------
+  # Job Worker (Orchestrator + Runner + Consumers)
+  # ---------------------------------------------------------------------------
+  job-worker:
+    build:
+      context: .
+      dockerfile: src/ReplicationDemo.Worker/Dockerfile
+    container_name: job-worker
+    environment:
+      - DOTNET_ENVIRONMENT=Production
+      - ConnectionStrings__Primary=Server=mssql-primary,1433;Database=JobManager;User Id=sa;Password=Str0ng!Passw0rd;TrustServerCertificate=true
+      - ConnectionStrings__Replica=Server=mssql-replica,1433;Database=JobManager;User Id=sa;Password=Str0ng!Passw0rd;TrustServerCertificate=true
+      - ServiceBus__ConnectionString=your connection string here
+    depends_on:
+      mssql-primary:
+        condition: service_healthy
+      mssql-replica:
+        condition: service_healthy
+    networks:
+      - replication-net
+
 volumes:
   mssql-primary-data:
   mssql-replica-data:
@@ -63,3 +108,4 @@ volumes:
 networks:
   replication-net:
     driver: bridge
+

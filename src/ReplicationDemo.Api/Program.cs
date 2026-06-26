@@ -2,6 +2,7 @@ using Microsoft.OpenApi.Models;
 using ReplicationDemo.Application;
 using ReplicationDemo.Application.Consistency;
 using ReplicationDemo.DAL;
+using ReplicationDemo.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +37,7 @@ builder.Services.Configure<ConsistencySettings>(
 
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddApplication();
+builder.Services.AddMessaging(builder.Configuration);
 
 var app = builder.Build();
 
