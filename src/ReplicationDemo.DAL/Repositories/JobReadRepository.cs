@@ -143,6 +143,41 @@ public class JobReadRepository : IJobReadRepository
             .ToListAsync(ct);
     }
 
+    /// <inheritdoc/>
+    public async Task<(IReadOnlyList<JobExecution> Items, int TotalCount)> GetExecutionHistoryPagedAsync(
+        Guid jobId,
+        int page,
+        int pageSize,
+        DateTime? from = null,
+        DateTime? to = null,
+        ConsistencyLevel consistency = ConsistencyLevel.Eventual,
+        CancellationToken ct = default)
+    {
+        var (_, _, executions, target) = ResolveQuerySources(consistency);
+        var query = executions.Where(e => e.JobId == jobId);
+
+        if (from.HasValue)
+            query = query.Where(e => e.StartedAt >= from.Value);
+        if (to.HasValue)
+            query = query.Where(e => e.StartedAt < to.Value);
+
+        _logger.LogDebug(
+            "[DB-ROUTING] GetExecutionHistoryPaged: JobId={JobId} Page={Page} PageSize={PageSize} " +
+            "ConsistencyLevel={Consistency} → {Target}",
+            jobId, page, pageSize, consistency, target);
+
+        // EF Core does not allow concurrent operations on the same DbContext instance,
+        // so COUNT and paged SELECT must run sequentially on the same connection.
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(e => e.StartedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, totalCount);
+    }
+
     public async Task<bool> HasPendingScheduleAsync(Guid jobId, CancellationToken ct = default)
     {
         // Always read from primary to get the most current state and avoid a race with

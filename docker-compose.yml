@@ -69,7 +69,7 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Primary=Server=mssql-primary,1433;Database=JobManager;User Id=sa;Password=Str0ng!Passw0rd;TrustServerCertificate=true
       - ConnectionStrings__Replica=Server=mssql-replica,1433;Database=JobManager;User Id=sa;Password=Str0ng!Passw0rd;TrustServerCertificate=true
-      - ServiceBus__ConnectionString=your connection string here
+      - ServiceBus__ConnectionString=Endpoint=sb://advancedplus.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey
     ports:
       - "5000:8080"
     depends_on:
@@ -92,7 +92,7 @@ services:
       - DOTNET_ENVIRONMENT=Production
       - ConnectionStrings__Primary=Server=mssql-primary,1433;Database=JobManager;User Id=sa;Password=Str0ng!Passw0rd;TrustServerCertificate=true
       - ConnectionStrings__Replica=Server=mssql-replica,1433;Database=JobManager;User Id=sa;Password=Str0ng!Passw0rd;TrustServerCertificate=true
-      - ServiceBus__ConnectionString=your connection string here
+      - ServiceBus__ConnectionString=Endpoint=sb://advancedplus.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey
     depends_on:
       mssql-primary:
         condition: service_healthy

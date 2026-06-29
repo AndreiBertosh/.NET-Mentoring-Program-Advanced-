@@ -46,6 +46,21 @@ public interface IJobReadRepository
     Task<bool> HasPendingScheduleAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
+    /// UC2.3 — Returns a single page of executions for <paramref name="jobId"/> plus the total
+    /// matching count. Supply <paramref name="from"/>/<paramref name="to"/> (UTC, exclusive upper
+    /// bound) to enable partition elimination on <c>PF_JobExecutions_ByMonth</c>.
+    /// Uses <see cref="ConsistencyLevel.Eventual"/> (replica read) for the history dashboard.
+    /// </summary>
+    Task<(IReadOnlyList<JobExecution> Items, int TotalCount)> GetExecutionHistoryPagedAsync(
+        Guid jobId,
+        int page,
+        int pageSize,
+        DateTime? from = null,
+        DateTime? to = null,
+        ConsistencyLevel consistency = ConsistencyLevel.Eventual,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Returns schedules whose <c>Status</c> is <c>Running</c> and <c>CreatedAt</c> is before
     /// <paramref name="before"/> (UTC). Used by the reconciliation service to detect stuck executions.
     /// Always reads from the primary.

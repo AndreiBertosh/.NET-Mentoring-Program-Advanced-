@@ -1,3 +1,4 @@
+using ReplicationDemo.Application.Models;
 using ReplicationDemo.Domain.Entities;
 
 namespace ReplicationDemo.Application.Services;
@@ -38,6 +39,21 @@ public interface IJobOrchestratorService
     /// </summary>
     Task<IReadOnlyList<JobExecution>> GetExecutionsByJobIdAsync(
         Guid jobId,
+        DateTime? from = null,
+        DateTime? to = null,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// UC2.3 — Returns a paginated page of execution history for a job.
+    /// Supports up to 1 000 concurrent readers by bounding payload size via <paramref name="pageSize"/>.
+    /// Supply <paramref name="from"/> / <paramref name="to"/> (UTC) to enable partition elimination
+    /// on <c>PF_JobExecutions_ByMonth</c> and reduce I/O.
+    /// Consistency: <b>Eventual</b> — replica read (monitoring / history dashboard).
+    /// </summary>
+    Task<PagedResult<JobExecution>> GetExecutionHistoryAsync(
+        Guid jobId,
+        int page,
+        int pageSize,
         DateTime? from = null,
         DateTime? to = null,
         CancellationToken ct = default);
