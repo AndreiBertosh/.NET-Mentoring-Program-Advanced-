@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ReplicationDemo.Application.Models;
 using ReplicationDemo.Domain.Consistency;
 using ReplicationDemo.Domain.Entities;
 using ReplicationDemo.Domain.Repositories;
@@ -84,5 +85,24 @@ public sealed class JobOrchestratorService : IJobOrchestratorService
             "[CONSISTENCY] GetExecutionsByJobId: JobId={JobId} — ConsistencyLevel=Eventual → replica",
             jobId);
         return await _readRepo.GetExecutionsByJobIdAsync(jobId, from, to, ConsistencyLevel.Eventual, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<PagedResult<JobExecution>> GetExecutionHistoryAsync(
+        Guid jobId,
+        int page,
+        int pageSize,
+        DateTime? from = null,
+        DateTime? to = null,
+        CancellationToken ct = default)
+    {
+        // UC2.3: Eventual consistency — replica read (history dashboard).
+        // Bounded page size keeps each response small, supporting 1 000 concurrent readers.
+        _logger.LogInformation(
+            "[CONSISTENCY] GetExecutionHistory: JobId={JobId} Page={Page} PageSize={PageSize} — ConsistencyLevel=Eventual → replica",
+            jobId, page, pageSize);
+        var (items, totalCount) = await _readRepo.GetExecutionHistoryPagedAsync(
+            jobId, page, pageSize, from, to, ConsistencyLevel.Eventual, ct);
+        return new PagedResult<JobExecution>(items, totalCount, page, pageSize);
     }
 }
