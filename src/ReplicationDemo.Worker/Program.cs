@@ -13,6 +13,20 @@ builder.Services.Configure<PollingOptions>(
     builder.Configuration.GetSection(PollingOptions.SectionName));
 
 // ------------------------------------------------------------------
+// Observability — Azure Application Insights (Job Runner telemetry)
+//   • Reads ApplicationInsights:ConnectionString from configuration.
+//   • Auto-collects CPU (cpu-usage) and Memory (working-set) via EventCounters,
+//     plus dependency / Service Bus telemetry — non-blocking, off the hot path.
+// ------------------------------------------------------------------
+builder.Services.AddApplicationInsightsTelemetryWorkerService();
+
+builder.Services.AddSingleton<Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer, RoleNameInitializer>();
+
+builder.Services.Configure<JobRunnerMetricsOptions>(
+    builder.Configuration.GetSection(JobRunnerMetricsOptions.SectionName));
+builder.Services.AddSingleton<IJobRunnerMetrics, JobRunnerMetrics>();
+
+// ------------------------------------------------------------------
 // Data access + Application layer
 // ------------------------------------------------------------------
 builder.Services.AddDataAccess(builder.Configuration);

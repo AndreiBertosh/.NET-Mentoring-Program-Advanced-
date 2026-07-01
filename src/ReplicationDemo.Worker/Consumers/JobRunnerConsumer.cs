@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using ReplicationDemo.Messaging;
 using ReplicationDemo.Messaging.Messages;
 using ReplicationDemo.Messaging.Publishing;
+using ReplicationDemo.Worker.Services;
 
 namespace ReplicationDemo.Worker.Consumers;
 
@@ -21,6 +22,7 @@ public sealed class JobRunnerConsumer : IHostedService, IAsyncDisposable
     private readonly ServiceBusClient _client;
     private readonly ServiceBusOptions _options;
     private readonly IMessagePublisher _publisher;
+    private readonly IJobRunnerMetrics _metrics;
     private readonly ILogger<JobRunnerConsumer> _logger;
 
     private ServiceBusSessionProcessor? _sessionProcessor;
@@ -31,11 +33,13 @@ public sealed class JobRunnerConsumer : IHostedService, IAsyncDisposable
         ServiceBusClient client,
         IOptions<ServiceBusOptions> options,
         IMessagePublisher publisher,
+        IJobRunnerMetrics metrics,
         ILogger<JobRunnerConsumer> logger)
     {
         _client = client;
         _options = options.Value;
         _publisher = publisher;
+        _metrics = metrics;
         _logger = logger;
     }
 
@@ -177,12 +181,18 @@ public sealed class JobRunnerConsumer : IHostedService, IAsyncDisposable
 
             await _publisher.SendExecutionResultAsync(result, cancellationToken);
 
+            // Telemetry: record outcome + duration (non-blocking, never throws).
+            _metrics.RecordExecution(status, result.Payload.DurationMs);
+
             _logger.LogInformation(
                 "Runner finished JobId={JobId} ScheduleId={ScheduleId} Status={Status} Duration={Duration}ms",
                 msg.Payload.JobId, msg.Payload.ScheduleId, status, result.Payload.DurationMs);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // Count the unhandled failure so it surfaces in FailedTasksCount / alerts.
+            _metrics.RecordExecution("Failed", (DateTime.UtcNow - startedAt).TotalMilliseconds);
+
             _logger.LogError(ex,
                 "Runner failed JobId={JobId} ScheduleId={ScheduleId} — abandoning for retry.",
                 msg.Payload.JobId, msg.Payload.ScheduleId);
