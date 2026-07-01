@@ -1,4 +1,5 @@
 using Microsoft.OpenApi.Models;
+using ReplicationDemo.Api.Formatters;
 using ReplicationDemo.Application;
 using ReplicationDemo.Application.Consistency;
 using ReplicationDemo.DAL;
@@ -6,7 +7,13 @@ using ReplicationDemo.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // Append Protobuf formatter so clients sending Accept: application/x-protobuf
+        // get binary Protobuf for UC2.3, while all other clients continue to receive
+        // JSON (the first / default formatter).
+        options.OutputFormatters.Add(new ProtobufOutputFormatter());
+    })
     .AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

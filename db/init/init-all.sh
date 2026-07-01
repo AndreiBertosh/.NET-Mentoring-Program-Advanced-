@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 set -e
 
 SQLCMD="/opt/mssql-tools18/bin/sqlcmd -C"

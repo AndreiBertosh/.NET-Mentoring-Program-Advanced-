@@ -27,12 +27,14 @@ IF NOT EXISTS (SELECT 1 FROM Jobs)
 BEGIN
     -- --------------------------------------------------------
     -- Jobs (5 records)
+    -- UUIDs are fixed so that primary and replica always share identical
+    -- reference data regardless of when the seed script is executed.
     -- --------------------------------------------------------
-    DECLARE @Job1 UNIQUEIDENTIFIER = NEWID();   -- Daily Sales Report
-    DECLARE @Job2 UNIQUEIDENTIFIER = NEWID();   -- Hourly Health Check
-    DECLARE @Job3 UNIQUEIDENTIFIER = NEWID();   -- Weekly Data Sync
-    DECLARE @Job4 UNIQUEIDENTIFIER = NEWID();   -- Monthly Cleanup
-    DECLARE @Job5 UNIQUEIDENTIFIER = NEWID();   -- Daily Backup
+    DECLARE @Job1 UNIQUEIDENTIFIER = 'F4BA575F-9A1C-4BEC-BFE4-7FF991DE2E9F';  -- Daily Sales Report
+    DECLARE @Job2 UNIQUEIDENTIFIER = '2DE31992-51B2-492B-87AC-E439D4B93475';  -- Hourly Health Check
+    DECLARE @Job3 UNIQUEIDENTIFIER = '5E118EF5-D13A-460E-9B50-9AB525EF6C64';  -- Weekly Data Sync
+    DECLARE @Job4 UNIQUEIDENTIFIER = 'D925F0D1-1A7E-417C-B500-262FA455F395';  -- Monthly Cleanup
+    DECLARE @Job5 UNIQUEIDENTIFIER = '930CB02C-4280-4DE2-A767-31C3BB1F0C9B';  -- Daily Backup
 
     INSERT INTO Jobs (Id, Name, Frequency, ExecutionTime, ApiEndpoint) VALUES
         (@Job1, 'Daily Sales Report',   'Daily',   '06:00:00', 'https://api.example.com/reports/sales'),
